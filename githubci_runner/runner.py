@@ -1,35 +1,40 @@
 import subprocess
 from time import sleep
 from githubci_runner.config import *
-from bash import bash
+# from bash import bash
+from subprocess import Popen
 from termcolor import cprint
 
-def run_cmd(cmd:str, verbose:bool):
+shell = "/usr/bin/bash"
+
+def run_cmd(cmd:str, shell: str, verbose:bool):
     stderr = subprocess.PIPE
     stdout = subprocess.PIPE
     if verbose:
         stderr = subprocess.STDOUT
         stdout = None
-    return bash(cmd, stderr=stderr, stdout=stdout)
-  
-       
+    p = Popen(cmd, stderr=stderr, stdout=stdout, shell=shell, executable=shell)
 
-def run_step(step: Step, verbose:bool) -> bool:
+    out, _ = p.communicate()
+    return p.returncode, out
+
+
+def run_step(step: Step, shell: str, verbose:bool) -> bool:
 
     cprint(f">> {step.name}", 'yellow', end='\r' if not verbose else '\n')
     try:
-        ret = run_cmd(step.cmd, verbose)
+        ret_code, out = run_cmd(step.cmd, shell, verbose)
         if not verbose:
-            if ret.code != 0:
-                print("\n".join(ret.stdout))
+            if ret_code != 0:
+                print("\n".join(out))
             else:
                 cprint(f">> {step.name}", 'green')
-        return ret.code == 0
+        return ret_code == 0
     except Exception as e:
         print(e)
         return False
 
-def run_job(job: Job, start_step:str = None, additional_sleep:int = 0, verbose:bool=False) -> None:
+def run_job(job: Job, shell:str, start_step:str = None, additional_sleep:int = 0, verbose:bool=False) -> None:
     cprint(f"> Starting job: {job.name}", 'blue', attrs=['bold'])
 
     if len(job.steps) == 0:
@@ -38,6 +43,7 @@ def run_job(job: Job, start_step:str = None, additional_sleep:int = 0, verbose:b
     
     additional_sleep = max(additional_sleep, 0)
     
+    index = -1
     if start_step is None:
         index = 0
     else:
@@ -46,9 +52,12 @@ def run_job(job: Job, start_step:str = None, additional_sleep:int = 0, verbose:b
             if step.name == start_step:
                 index = idx
                 break
+    if index == -1:
+        cprint(f"No step found <{start_step}>", "red", attrs=["bold"])
+        return
     
     for step in job.steps[index:]:
-        if not run_step(step, verbose):
+        if not run_step(step, shell, verbose):
             cprint(f"Failed at step <{step.name}>: {step.cmd}", "red", attrs=["bold"])
             return
         
