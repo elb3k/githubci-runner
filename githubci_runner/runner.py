@@ -5,8 +5,6 @@ from githubci_runner.config import *
 from subprocess import Popen
 from termcolor import cprint
 
-shell = "/usr/bin/bash"
-
 def run_cmd(cmd:str, shell: str, verbose:bool):
     stderr = subprocess.PIPE
     stdout = subprocess.PIPE
@@ -21,15 +19,19 @@ def run_cmd(cmd:str, shell: str, verbose:bool):
 
 def run_step(step: Step, shell: str, verbose:bool) -> bool:
 
-    cprint(f">> {step.name}", 'yellow', end='\r' if not verbose else '\n')
+    cprint(f">> {step.name}", 'yellow', end="".join(['\r'] * len(step.name.split('\n'))) if not verbose else '\n')
     try:
-        ret_code, out = run_cmd(step.cmd, shell, verbose)
-        if not verbose:
+        for cmd in step.cmds:
+            ret_code, out = run_cmd(cmd, shell, verbose)
+            if not verbose:
+                if ret_code != 0:
+                    print("\n".join(out))
+                else:
+                    cprint(f">> {step.name}", 'green')
             if ret_code != 0:
-                print("\n".join(out))
-            else:
-                cprint(f">> {step.name}", 'green')
-        return ret_code == 0
+                return False
+        
+        return True
     except Exception as e:
         print(e)
         return False
@@ -58,10 +60,12 @@ def run_job(job: Job, shell:str, start_step:str = None, additional_sleep:int = 0
     
     for step in job.steps[index:]:
         if not run_step(step, shell, verbose):
-            cprint(f"Failed at step <{step.name}>: {step.cmd}", "red", attrs=["bold"])
+            cprint(f"Failed at step <{step.name}>: {step.cmds}", "red", attrs=["bold"])
             return
         
         sleep(additional_sleep)
+    
+    cprint(f"Successfully finished job: {job.name}", "green", attrs=["bold"])
 
 
 

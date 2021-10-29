@@ -19,7 +19,7 @@ import os, sys
 class Step:
     def __init__(self, name:str, cmd:str):
         self.name = name.strip()
-        self.cmd = cmd.strip()
+        self.cmds = [ x.strip() for x in cmd.strip().split("\n") ] 
 
 
 class Job:
