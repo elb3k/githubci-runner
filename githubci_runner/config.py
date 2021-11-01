@@ -1,25 +1,12 @@
 import yaml
-from typing import List
+from typing import List, Dict
 
-import os, sys
-
-# class Verbose:
-#     def __init__(self, verbose):
-#         self.verbose = verbose
-#     def __enter__(self):
-#         if not self.verbose:
-#             self._original_stdout = sys.stdout
-#             sys.stdout = open(os.devnull, 'w')
-
-#     def __exit__(self, exc_type, exc_val, exc_tb):
-#         if not self.verbose:
-#             sys.stdout.close()
-#             sys.stdout = self._original_stdout
 
 class Step:
-    def __init__(self, name:str, cmd:str):
+    def __init__(self, name:str, cmd:str, envs:Dict[str, str]):
         self.name = name.strip()
         self.cmds = [ x.strip() for x in cmd.strip().split("\n") ] 
+        self.envs = envs
 
 
 class Job:
@@ -50,7 +37,8 @@ def load_config(filename, verbose=False):
                 continue
             cmd = step["run"]
             step_name = step["name"] if "name" in step else cmd
-            steps.append(Step(name=step_name, cmd=cmd))
+            envs = step["env"] if "env" in step else dict()
+            steps.append(Step(name=step_name, cmd=cmd, envs=envs))
         
         jobs[job_name] = Job(name=job_name, steps=steps)
         

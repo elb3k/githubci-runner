@@ -4,14 +4,25 @@ from githubci_runner.config import *
 # from bash import bash
 from subprocess import Popen
 from termcolor import cprint
+from typing import Dict
+import os
 
-def run_cmd(cmd:str, shell: str, verbose:bool):
+def eval_envs(envs: Dict[str, str]) -> Dict[str, str]:
+    os_envs = os.environ.copy()
+
+    for name, val in envs.items():
+        if name not in envs:
+            os_envs[name] = val
+    
+    return os_envs
+
+def run_cmd(cmd:str, shell: str, verbose:bool, env: Dict[str, str]):
     stderr = subprocess.PIPE
     stdout = subprocess.PIPE
     if verbose:
         stderr = subprocess.STDOUT
         stdout = None
-    p = Popen(cmd, stderr=stderr, stdout=stdout, shell=shell, executable=shell)
+    p = Popen(cmd, stderr=stderr, stdout=stdout, shell=shell, executable=shell, env=env)
 
     out, _ = p.communicate()
     return p.returncode, out
@@ -21,8 +32,9 @@ def run_step(step: Step, shell: str, verbose:bool) -> bool:
 
     cprint(f">> {step.name}", 'yellow', end="".join(['\r'] * len(step.name.split('\n'))) if not verbose else '\n')
     try:
+        envs = eval_envs(step.envs)
         for cmd in step.cmds:
-            ret_code, out = run_cmd(cmd, shell, verbose)
+            ret_code, out = run_cmd(cmd, shell, verbose, envs)
             if not verbose:
                 if ret_code != 0:
                     print("\n".join(out))
